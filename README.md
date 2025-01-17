@@ -1,4 +1,4 @@
-# Migrator
+# Migrater
 
 ## Description
 This project implements a unique approach to database migrations by using a database.json file to define the database schema and automating migrations based on a comparison with the connected database.
