@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log"
+
 	cli "github.com/yassirdeveloper/cli"
 )
 
@@ -8,6 +10,9 @@ const CLI_NAME = "migrater"
 const CLI_VERSION = "0.0.1"
 
 func main() {
-	cli := cli.NewCli(CLI_NAME, CLI_VERSION)
+	cli, err := cli.NewCli(CLI_NAME, CLI_VERSION)
+	if err != nil {
+		log.Fatal(err)
+	}
 	cli.Run(true)
 }
