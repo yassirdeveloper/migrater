@@ -4,7 +4,7 @@ go 1.24.0
 
 toolchain go1.24.1
 
-require github.com/yassirdeveloper/cli v0.2.0
+require github.com/yassirdeveloper/cli v0.2.1
 
 require (
 	github.com/chzyer/readline v1.5.1 // indirect

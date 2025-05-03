@@ -4,6 +4,7 @@ import (
 	"log"
 
 	cli "github.com/yassirdeveloper/cli"
+	"github.com/yassirdeveloper/migrater/cmd"
 )
 
 const CLI_NAME = "migrater"
@@ -14,5 +15,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	cli.AddCommand(cmd.ValidateCommand())
 	cli.Run(true)
 }
