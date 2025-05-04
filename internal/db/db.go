@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 
 	"github.com/yassirdeveloper/cli/errors"
+	"github.com/yassirdeveloper/migrater/internal/db/drivers"
 	"github.com/yassirdeveloper/migrater/internal/utils"
 )
 
@@ -18,8 +20,9 @@ type Database interface {
 }
 
 type Schema struct {
+	Driver       string  `json:"driver"`
 	DatabaseName string  `json:"database"`
-	SchemaName   string  `json:"schema" default:"public"`
+	SchemaName   string  `json:"schema"`
 	Tables       []Table `json:"tables"`
 }
 
@@ -29,9 +32,9 @@ type Table struct {
 }
 
 type Column struct {
-	Name        string   `json:"name"`
-	DataType    string   `json:"type"`
-	Constraints []string `json:"constraints"`
+	Name        string           `json:"name"`
+	Type        drivers.DataType `json:"type"`
+	Constraints []string         `json:"constraints"`
 }
 
 func LoadJSONSchema(filePath string) (Schema, errors.Error) {
@@ -51,33 +54,63 @@ func LoadJSONSchema(filePath string) (Schema, errors.Error) {
 	return schema, nil
 }
 
-func (s *Schema) Validate() errors.Error {
-	if s.DatabaseName == "" {
-		return errors.New("database name cannot be empty")
+func (s *Schema) Validate() []errors.Error {
+	errs := make([]errors.Error, 0)
+	driver := drivers.Drivers[s.Driver]
+	if driver == nil {
+		if s.Driver == "" {
+			errs = append(errs, errors.New("missing driver"))
+		} else {
+			errs = append(errs, errors.New(fmt.Sprintf("invalid driver: %s", s.Driver)))
+		}
 	}
-
-	if s.SchemaName == "" {
-		return errors.New("database schema name cannot be empty")
+	if s.DatabaseName == "" {
+		errs = append(errs, errors.New("database name cannot be empty"))
 	}
 
 	if len(s.Tables) == 0 {
-		return errors.New("schema must have at least one table")
+		errs = append(errs, errors.New("schema must have at least one table"))
 	}
 
+	tableNames := make(map[string]bool)
 	for _, table := range s.Tables {
+		if tableNames[table.Name] {
+			errs = append(errs, errors.New(fmt.Sprintf("duplicate table name: %s", table.Name)))
+		}
+		tableNames[table.Name] = true
+
 		err := utils.ValidateSQLName(table.Name)
 		if err != nil {
-			return errors.New(fmt.Sprintf("invalid table name: %s (%s)", table.Name, err.Display()))
+			errs = append(errs, errors.New(fmt.Sprintf("invalid table name: %s (%s)", table.Name, err.Display())))
 		}
+
+		columnNames := make(map[string]bool)
 		for _, column := range table.Columns {
-			err = utils.ValidateSQLName(table.Name)
+			if columnNames[column.Name] {
+				errs = append(errs, errors.New(fmt.Sprintf("duplicate column name: %s in table %s", column.Name, table.Name)))
+			}
+			columnNames[column.Name] = true
+
+			err = utils.ValidateSQLName(column.Name)
 			if err != nil {
-				return errors.New(fmt.Sprintf("invalid column name: %s (%s)", column.Name, err.Display()))
+				errs = append(errs, errors.New(fmt.Sprintf("invalid column name: %s (%s)", column.Name, err.Display())))
 			}
-			if column.DataType == "" {
-				return errors.New(fmt.Sprintf("type of column %s cannot be empty", column.Name))
+
+			if column.Type == "" {
+				errs = append(errs, errors.New(fmt.Sprintf("type of column %s cannot be empty", column.Name)))
 			}
+
+			if !slices.Contains(driver.GetDataTypes(), column.Type) {
+				errs = append(errs, errors.New(fmt.Sprintf("invalid data type: %s for column %s", column.Type, column.Name)))
+			}
+
+			// Add constraints validation here
+			// for _, constraint := range column.Constraints {
+			// 	if !isValidConstraint(constraint) {
+			// 		errs = append(errs, errors.New(fmt.Sprintf("invalid constraint: %s for column %s", constraint, column.Name)))
+			// 	}
+			// }
 		}
 	}
-	return nil
+	return errs
 }

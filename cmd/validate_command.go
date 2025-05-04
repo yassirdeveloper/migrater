@@ -30,11 +30,17 @@ func validateHandler(input command.CommandInput, operator operator.Operator) err
 		}
 		return nil
 	}
-	err = schema.Validate()
-	if err != nil {
-		err = operator.Write(fmt.Sprintf("Unvalid schema: %s", err.Display()))
+	errs := schema.Validate()
+	if len(errs) > 0 {
+		err = operator.Write("Invalid database schema:\n")
 		if err != nil {
 			return errors.NewUnexpectedError(err)
+		}
+		for _, err := range errs {
+			err = operator.Write(fmt.Sprintf("- %s\n", err.Display()))
+			if err != nil {
+				return errors.NewUnexpectedError(err)
+			}
 		}
 		return nil
 	}
