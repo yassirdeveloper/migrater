@@ -19,7 +19,10 @@ var jsonFilePathArgument = command.CommandArgument{
 func validateHandler(input command.CommandInput, operator operator.Operator) errors.Error {
 	filePathArg, err := input.ParseArgument(jsonFilePathArgument)
 	if err != nil {
-		return err
+		err = operator.Write(err.Display())
+		if err != nil {
+			return errors.NewUnexpectedError(err)
+		}
 	}
 	filePath := filePathArg.(string)
 	schema, err := db.LoadJSONSchema(filePath)

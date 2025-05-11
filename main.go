@@ -16,5 +16,6 @@ func main() {
 		log.Fatal(err)
 	}
 	cli.AddCommand(cmd.ValidateCommand())
+	cli.AddCommand(cmd.DescribeCommand())
 	cli.Run(true)
 }

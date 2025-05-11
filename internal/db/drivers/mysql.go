@@ -20,7 +20,7 @@ func (d *mysqlDriver) GetDataTypes() []DataType {
 	return d.dataTypes
 }
 
-func (d *mysqlDriver) Connect(c config.Config) errors.Error {
+func (d *mysqlDriver) Connect(c config.ConnectionConfig) errors.Error {
 	if d.db != nil {
 		errors.New("connection already exists")
 	}

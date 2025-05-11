@@ -18,9 +18,9 @@ func (d *postgresDriver) GetDataTypes() []DataType {
 	return d.dataTypes
 }
 
-func (d *postgresDriver) Connect(c config.Config) errors.Error {
+func (d *postgresDriver) Connect(c config.ConnectionConfig) errors.Error {
 	if d.conn == nil {
-		conf := c.(*config.StandardConfig)
+		conf := c.(*config.StandardConnectionConfig)
 		connConfig := pgx.ConnConfig{
 			Host:     conf.Host,
 			Port:     conf.Port,

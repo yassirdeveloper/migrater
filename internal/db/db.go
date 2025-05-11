@@ -5,18 +5,47 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"slices"
 
 	"github.com/yassirdeveloper/cli/errors"
 	"github.com/yassirdeveloper/migrater/internal/db/drivers"
 	"github.com/yassirdeveloper/migrater/internal/utils"
 )
 
+type Result []map[string]interface{}
+
 type Database interface {
-	Connect() error
-	Disconnect() error
-	Execute(query string) error
-	Query(query string) (results []map[string]interface{}, err error)
+	Connect() errors.Error
+	Disconnect() errors.Error
+	Execute(string) errors.Error
+	Query(string) (Result, errors.Error)
+	Describe() string
+}
+
+type database struct{}
+
+func (d *database) Connect() errors.Error {
+	return nil
+}
+
+func (d *database) Disconnect() errors.Error {
+	return nil
+}
+
+func (d *database) Execute(query string) errors.Error {
+	return nil
+}
+
+func (d *database) Query(query string) (Result, errors.Error) {
+	return nil, nil
+}
+
+func (d *database) Describe() string {
+	return "describe test"
+}
+
+func GetDatabase(name string) Database {
+	d := &database{}
+	return d
 }
 
 type Schema struct {
@@ -100,7 +129,7 @@ func (s *Schema) Validate() []errors.Error {
 				errs = append(errs, errors.New(fmt.Sprintf("type of column %s cannot be empty", column.Name)))
 			}
 
-			if !slices.Contains(driver.GetDataTypes(), column.Type) {
+			if !drivers.HasType(driver, column.Type) {
 				errs = append(errs, errors.New(fmt.Sprintf("invalid data type: %s for column %s", column.Type, column.Name)))
 			}
 

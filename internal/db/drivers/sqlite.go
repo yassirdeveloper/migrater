@@ -20,7 +20,7 @@ func (d *sqliteDriver) GetDataTypes() []DataType {
 	return d.dataTypes
 }
 
-func (d *sqliteDriver) Connect(c config.Config) errors.Error {
+func (d *sqliteDriver) Connect(c config.ConnectionConfig) errors.Error {
 	if d.db != nil {
 		return errors.New("connection already exists")
 	}
