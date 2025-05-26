@@ -25,7 +25,7 @@ func validateHandler(input command.CommandInput, operator operator.Operator) err
 		}
 	}
 	filePath := filePathArg.(string)
-	schema, err := db.LoadJSONSchema(filePath)
+	db, err := db.LoadFromJSON(filePath)
 	if err != nil {
 		err = operator.Write(err.Display())
 		if err != nil {
@@ -33,9 +33,9 @@ func validateHandler(input command.CommandInput, operator operator.Operator) err
 		}
 		return nil
 	}
-	errs := schema.Validate()
+	errs := db.Validate()
 	if len(errs) > 0 {
-		err = operator.Write("Invalid database schema:\n")
+		err = operator.Write("Invalid database structure:\n")
 		if err != nil {
 			return errors.NewUnexpectedError(err)
 		}
@@ -47,7 +47,7 @@ func validateHandler(input command.CommandInput, operator operator.Operator) err
 		}
 		return nil
 	}
-	err = operator.Write("Valid schema!")
+	err = operator.Write("Valid database structure!")
 	if err != nil {
 		return errors.NewUnexpectedError(err)
 	}

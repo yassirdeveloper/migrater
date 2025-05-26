@@ -27,20 +27,28 @@ func describeHandler(input command.CommandInput, operator operator.Operator) err
 		}
 		return nil
 	}
-	var databaseName string
-	if databaseOpt != nil {
-		databaseName = databaseOpt.(string)
-	} else {
-		globalConfig, err := config.GetGlobalConfig()
+	globalConfig, err := config.GetGlobalConfig()
+	if err != nil {
+		err = operator.Write(err.Error())
 		if err != nil {
-			err = operator.Write(err.Error())
+			return errors.NewUnexpectedError(err)
+		}
+		return nil
+	}
+	var databaseConfig *config.DatabaseConfig
+	if databaseOpt != nil {
+		databaseName := databaseOpt.(string)
+		databaseConfig := globalConfig.GetDatabaseConfig(databaseName)
+		if databaseConfig == nil {
+			err = operator.Write(fmt.Sprintf("Missing configuration for database: %s", databaseName))
 			if err != nil {
 				return errors.NewUnexpectedError(err)
 			}
 			return nil
 		}
-		databaseName = globalConfig.GetDefaultDatabaseName()
-		if databaseName == "" {
+	} else {
+		databaseConfig = globalConfig.GetDefaultDatabaseConfig()
+		if databaseConfig == nil {
 			err = operator.Write("No default database is configured")
 			if err != nil {
 				return errors.NewUnexpectedError(err)
@@ -48,9 +56,9 @@ func describeHandler(input command.CommandInput, operator operator.Operator) err
 			return nil
 		}
 	}
-	database := db.GetDatabase(databaseName)
-	if database == nil {
-		err = operator.Write(fmt.Sprintf("No database is registered with the name: %s", databaseName))
+	database, err := db.GetDatabase(databaseConfig)
+	if err != nil {
+		err = operator.Write(err.Display())
 		if err != nil {
 			return errors.NewUnexpectedError(err)
 		}
@@ -66,7 +74,7 @@ func describeHandler(input command.CommandInput, operator operator.Operator) err
 func DescribeCommand() command.Command {
 	cmd := command.NewCommand(
 		"describe",
-		"Prints the strcuture of the database schema.",
+		"Prints the strcuture of the database.",
 		describeHandler,
 	)
 	cmd.AddOption(databaseOption)

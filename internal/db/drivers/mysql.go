@@ -6,7 +6,7 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/yassirdeveloper/cli/errors"
-	"github.com/yassirdeveloper/migrater/internal/config"
+	"github.com/yassirdeveloper/migrater/internal/utils"
 )
 
 type mysqlDriver struct {
@@ -20,16 +20,36 @@ func (d *mysqlDriver) GetDataTypes() []DataType {
 	return d.dataTypes
 }
 
-func (d *mysqlDriver) Connect(c config.ConnectionConfig) errors.Error {
+func (d *mysqlDriver) Connect(dsn utils.DSN) errors.Error {
 	if d.db != nil {
 		errors.New("connection already exists")
 	}
-	db, err := sql.Open("mysql", c.DSN())
+	db, err := sql.Open("mysql", dsn.String())
 	if err != nil {
-		return errors.New(fmt.Sprintf("Could not establish connection: %s", err))
+		return errors.New(fmt.Sprintf("Could not establish connection!\n%s", err))
 	}
 	d.db = db
 	return nil
+}
+
+func (d *mysqlDriver) Execute(query string) errors.Error {
+	_, err := d.db.Exec(query)
+	if err != nil {
+		return errors.NewUnexpectedError(err)
+	}
+	return nil
+}
+
+func (d *mysqlDriver) Query(query string) (Result, errors.Error) {
+	rows, err := d.db.Query(query)
+	if err != nil {
+		return nil, errors.NewUnexpectedError(err)
+	}
+	return rows, nil
+}
+
+func (d *mysqlDriver) Version() float32 {
+	return d.version
 }
 
 func (d *mysqlDriver) Close() errors.Error {
@@ -43,7 +63,7 @@ func (d *mysqlDriver) Close() errors.Error {
 	return nil
 }
 
-var MysqlDriver = &mysqlDriver{
+var mysqlDriverInstance = &mysqlDriver{
 	version: 5.7,
 	dataTypes: []DataType{
 		"BIT",

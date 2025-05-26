@@ -5,7 +5,7 @@ import (
 
 	"github.com/jackc/pgx"
 	"github.com/yassirdeveloper/cli/errors"
-	"github.com/yassirdeveloper/migrater/internal/config"
+	"github.com/yassirdeveloper/migrater/internal/utils"
 )
 
 type postgresDriver struct {
@@ -18,23 +18,42 @@ func (d *postgresDriver) GetDataTypes() []DataType {
 	return d.dataTypes
 }
 
-func (d *postgresDriver) Connect(c config.ConnectionConfig) errors.Error {
+func (d *postgresDriver) Connect(dsn utils.DSN) errors.Error {
 	if d.conn == nil {
-		conf := c.(*config.StandardConnectionConfig)
 		connConfig := pgx.ConnConfig{
-			Host:     conf.Host,
-			Port:     conf.Port,
-			Database: conf.Database,
-			User:     conf.User,
-			Password: conf.Password,
+			Host:     dsn.Host,
+			Port:     dsn.Port,
+			Database: dsn.Database,
+			User:     dsn.User,
+			Password: dsn.Password,
 		}
-		conn, err := pgx.Connect(connConfig)
-		if err != nil {
-			return errors.New(fmt.Sprintf("Could not establish connection: %s", err))
+		conn, err_ := pgx.Connect(connConfig)
+		if err_ != nil {
+			return errors.New(fmt.Sprintf("Could not establish connection!\n%s", err_))
 		}
 		d.conn = conn
 	}
 	return nil
+}
+
+func (d *postgresDriver) Execute(query string) errors.Error {
+	_, err := d.conn.Exec(query)
+	if err != nil {
+		return errors.NewUnexpectedError(err)
+	}
+	return nil
+}
+
+func (d *postgresDriver) Query(query string) (Result, errors.Error) {
+	rows, err := d.conn.Query(query)
+	if err != nil {
+		return nil, errors.NewUnexpectedError(err)
+	}
+	return rows, nil
+}
+
+func (d *postgresDriver) Version() float32 {
+	return d.version
 }
 
 func (d *postgresDriver) Close() errors.Error {
@@ -48,7 +67,7 @@ func (d *postgresDriver) Close() errors.Error {
 	return nil
 }
 
-var PostgresDriver = &postgresDriver{
+var postgresDriverInstance = &postgresDriver{
 	version: 13.0,
 	dataTypes: []DataType{
 		"SMALLINT",
