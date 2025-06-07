@@ -16,8 +16,8 @@ import (
 var globalConfigFilePath = "config.hcl"
 
 type GlobalConfig interface {
-	GetDefaultDatabaseConfig() *DatabaseConfig
-	GetDatabaseConfig(string) *DatabaseConfig
+	GetDefaultDatabaseConfig() DatabaseConfig
+	GetDatabaseConfig(string) DatabaseConfig
 	Validate() errors.Error
 }
 
@@ -46,10 +46,10 @@ func GetGlobalConfig() (GlobalConfig, errors.Error) {
 }
 
 type globalConfig struct {
-	Databases []*DatabaseConfig `hcl:"database,block"`
+	Databases []*databaseConfig `hcl:"database,block"`
 }
 
-func (c *globalConfig) GetDefaultDatabaseConfig() *DatabaseConfig {
+func (c *globalConfig) GetDefaultDatabaseConfig() DatabaseConfig {
 	for _, d := range c.Databases {
 		if d.Default {
 			return d
@@ -58,7 +58,7 @@ func (c *globalConfig) GetDefaultDatabaseConfig() *DatabaseConfig {
 	return nil
 }
 
-func (c *globalConfig) GetDatabaseConfig(name string) *DatabaseConfig {
+func (c *globalConfig) GetDatabaseConfig(name string) DatabaseConfig {
 	for _, d := range c.Databases {
 		if d.Name == name {
 			return d
@@ -99,14 +99,20 @@ func (c *globalConfig) Validate() errors.Error {
 	return nil
 }
 
-type DatabaseConfig struct {
+type DatabaseConfig interface {
+	GetDSN() (*utils.DSN, errors.Error)
+	GetName() string
+	GetDriver() drivers.DriverType
+}
+
+type databaseConfig struct {
 	Name    string             `hcl:",label"`
 	Driver  drivers.DriverType `hcl:"driver,attr"`
 	Default bool               `hcl:"default,attr"`
 	DSN     string             `hcl:"dsn,attr"`
 }
 
-func (d *DatabaseConfig) GetDSN() (utils.DSN, errors.Error) {
+func (d *databaseConfig) GetDSN() (*utils.DSN, errors.Error) {
 	var format utils.DSNFormat
 	switch d.Driver {
 	case drivers.MysqlDriverType:
@@ -116,11 +122,19 @@ func (d *DatabaseConfig) GetDSN() (utils.DSN, errors.Error) {
 	case drivers.SqliteDriverType:
 		format = utils.DSNFormatSQLite
 	default:
-		return utils.DSN{}, errors.New(fmt.Sprintf("Unsupported driver: %s", d.Driver))
+		return nil, errors.New(fmt.Sprintf("Unsupported driver: %s", d.Driver))
 	}
 	parsedDSN, err := utils.ToDSN(d.DSN, format)
 	if err != nil {
-		return utils.DSN{}, errors.New(fmt.Sprintf("Invalid DSN: %s", err))
+		return nil, errors.New(fmt.Sprintf("Invalid DSN: %s", err))
 	}
-	return *parsedDSN, nil
+	return parsedDSN, nil
+}
+
+func (d *databaseConfig) GetName() string {
+	return d.Name
+}
+
+func (d *databaseConfig) GetDriver() drivers.DriverType {
+	return d.Driver
 }

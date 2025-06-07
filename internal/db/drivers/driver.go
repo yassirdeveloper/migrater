@@ -2,9 +2,9 @@ package drivers
 
 import (
 	"slices"
-	"strings"
 
 	"github.com/yassirdeveloper/cli/errors"
+	"github.com/yassirdeveloper/migrater/internal/schema"
 	"github.com/yassirdeveloper/migrater/internal/utils"
 )
 
@@ -35,31 +35,27 @@ func GetDriver(driverType DriverType) Driver {
 	}
 }
 
-type DataType string
-
-func (t DataType) Equals(other DataType) bool {
-	return strings.EqualFold(string(t), string(other))
-}
-
 type Result interface {
 	Next() bool
 	Scan(...any) error
 }
 
 type Driver interface {
-	GetDataTypes() []DataType
+	GetDataTypes() []schema.DataType
 	Connect(utils.DSN) errors.Error
 	Execute(string) errors.Error
 	Query(string) (Result, errors.Error)
 	Close() errors.Error
 	Version() float32
+	GetTableNames() ([]string, errors.Error)
+	GetTable(string) (schema.Table, errors.Error)
 }
 
-func HasType(d Driver, t DataType) bool {
+func HasType(d Driver, t schema.DataType) bool {
 	driverTypes := d.GetDataTypes()
 	tIndex := slices.IndexFunc(
 		driverTypes,
-		func(s DataType) bool {
+		func(s schema.DataType) bool {
 			return s.Equals(t)
 		},
 	)

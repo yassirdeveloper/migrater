@@ -9,6 +9,7 @@ import (
 	"github.com/yassirdeveloper/cli/errors"
 	"github.com/yassirdeveloper/migrater/internal/config"
 	"github.com/yassirdeveloper/migrater/internal/db/drivers"
+	"github.com/yassirdeveloper/migrater/internal/schema"
 	"github.com/yassirdeveloper/migrater/internal/utils"
 )
 
@@ -21,15 +22,15 @@ type Database interface {
 	Describe() string
 }
 
-func GetDatabase(config *config.DatabaseConfig) (Database, errors.Error) {
+func GetDatabase(config config.DatabaseConfig) (Database, errors.Error) {
 	dsn, err := config.GetDSN()
 	if err != nil {
 		return nil, err
 	}
 	d := &SqlDatabase{
-		DriverType: config.Driver,
-		Name:       config.Name,
-		dsn:        dsn,
+		DriverType: config.GetDriver(),
+		Name:       config.GetName(),
+		dsn:        *dsn,
 	}
 	err = d.Init()
 	if err != nil {
@@ -58,7 +59,7 @@ func LoadFromJSON(filePath string) (Database, errors.Error) {
 type SqlDatabase struct {
 	DriverType drivers.DriverType `json:"driver"`
 	Name       string             `json:"name"`
-	Tables     []Table            `json:"tables"`
+	Tables     []schema.Table     `json:"tables"`
 	driver     drivers.Driver
 	dsn        utils.DSN
 }
@@ -69,9 +70,21 @@ func (d *SqlDatabase) Init() errors.Error {
 		return errors.New(fmt.Sprintf("Invalid driver: %s", d.DriverType))
 	}
 	d.driver = driver
-	err := driver.Connect(d.DSN())
+	err := d.driver.Connect(d.DSN())
 	if err != nil {
 		return err
+	}
+	tableNames, err := d.driver.GetTableNames()
+	if err != nil {
+		return err
+	}
+	d.Tables = make([]schema.Table, 0, len(tableNames))
+	for _, tableName := range tableNames {
+		table, err := d.driver.GetTable(tableName)
+		if err != nil {
+			return err
+		}
+		d.Tables = append(d.Tables, table)
 	}
 	return nil
 }
@@ -89,7 +102,20 @@ func (d *SqlDatabase) Query(query string) (drivers.Result, errors.Error) {
 }
 
 func (d *SqlDatabase) Describe() string {
-	return "describe test"
+	tablesSummary := ""
+	for _, table := range d.Tables {
+		tablesSummary += fmt.Sprintf("Table: %s\n", table.Name)
+		for _, column := range table.Columns {
+			tablesSummary += fmt.Sprintf("  Column: %s, Type: %s\n", column.Name, column.Type)
+			if len(column.Constraints) > 0 {
+				tablesSummary += fmt.Sprintf("    Constraints: %s\n", column.Constraints)
+			}
+		}
+	}
+	if tablesSummary == "" {
+		tablesSummary = "No tables found."
+	}
+	return fmt.Sprintf("Database: %s\nDriver: %s\nTables:\n%s", d.Name, d.DriverType, tablesSummary)
 }
 
 func (s *SqlDatabase) Validate() []errors.Error {
@@ -143,15 +169,4 @@ func (s *SqlDatabase) Validate() []errors.Error {
 		}
 	}
 	return errs
-}
-
-type Table struct {
-	Name    string   `json:"name"`
-	Columns []Column `json:"columns"`
-}
-
-type Column struct {
-	Name        string           `json:"name"`
-	Type        drivers.DataType `json:"type"`
-	Constraints []string         `json:"constraints"`
 }

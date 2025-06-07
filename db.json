@@ -1,1 +1,24 @@
-{}
+{
+    "name": "db",
+    "driver": "sqlite",
+    "tables": [
+        {
+            "name": "test",
+            "columns": [
+                {
+                    "name": "test",
+                    "type": "DateTime"
+                }
+            ]
+        },
+        {
+            "name": "_test",
+            "columns": [
+                {
+                    "name": "test",
+                    "type": "boolean"
+                }
+            ]
+        }
+    ]
+}

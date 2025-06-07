@@ -21,54 +21,30 @@ var databaseOption = command.CommandOption{
 func describeHandler(input command.CommandInput, operator operator.Operator) errors.Error {
 	databaseOpt, err := input.ParseOption(databaseOption)
 	if err != nil {
-		err = operator.Write(err.Display())
-		if err != nil {
-			return errors.NewUnexpectedError(err)
-		}
-		return nil
+		return operator.Write(err.Display())
 	}
 	globalConfig, err := config.GetGlobalConfig()
 	if err != nil {
-		err = operator.Write(err.Error())
-		if err != nil {
-			return errors.NewUnexpectedError(err)
-		}
-		return nil
+		return operator.Write(err.Error())
 	}
-	var databaseConfig *config.DatabaseConfig
+	var databaseConfig config.DatabaseConfig
 	if databaseOpt != nil {
 		databaseName := databaseOpt.(string)
-		databaseConfig := globalConfig.GetDatabaseConfig(databaseName)
+		databaseConfig = globalConfig.GetDatabaseConfig(databaseName)
 		if databaseConfig == nil {
-			err = operator.Write(fmt.Sprintf("Missing configuration for database: %s", databaseName))
-			if err != nil {
-				return errors.NewUnexpectedError(err)
-			}
-			return nil
+			return operator.Write(fmt.Sprintf("Missing configuration for database: %s", databaseName))
 		}
 	} else {
 		databaseConfig = globalConfig.GetDefaultDatabaseConfig()
 		if databaseConfig == nil {
-			err = operator.Write("No default database is configured")
-			if err != nil {
-				return errors.NewUnexpectedError(err)
-			}
-			return nil
+			return operator.Write("No default database is configured")
 		}
 	}
 	database, err := db.GetDatabase(databaseConfig)
 	if err != nil {
-		err = operator.Write(err.Display())
-		if err != nil {
-			return errors.NewUnexpectedError(err)
-		}
-		return nil
+		return operator.Write(err.Display())
 	}
-	err = operator.Write(database.Describe())
-	if err != nil {
-		return errors.NewUnexpectedError(err)
-	}
-	return nil
+	return operator.Write(database.Describe())
 }
 
 func DescribeCommand() command.Command {

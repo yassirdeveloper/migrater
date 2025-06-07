@@ -5,16 +5,17 @@ import (
 
 	"github.com/jackc/pgx"
 	"github.com/yassirdeveloper/cli/errors"
+	"github.com/yassirdeveloper/migrater/internal/schema"
 	"github.com/yassirdeveloper/migrater/internal/utils"
 )
 
 type postgresDriver struct {
 	version   float32
-	dataTypes []DataType
+	dataTypes []schema.DataType
 	conn      *pgx.Conn
 }
 
-func (d *postgresDriver) GetDataTypes() []DataType {
+func (d *postgresDriver) GetDataTypes() []schema.DataType {
 	return d.dataTypes
 }
 
@@ -52,6 +53,48 @@ func (d *postgresDriver) Query(query string) (Result, errors.Error) {
 	return rows, nil
 }
 
+func (d *postgresDriver) GetTableNames() ([]string, errors.Error) {
+	query := "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
+	rows, err := d.conn.Query(query)
+	if err != nil {
+		return nil, errors.NewUnexpectedError(err)
+	}
+	defer rows.Close()
+
+	var tableNames []string
+	for rows.Next() {
+		var tableName string
+		if err := rows.Scan(&tableName); err != nil {
+			return nil, errors.NewUnexpectedError(err)
+		}
+		tableNames = append(tableNames, tableName)
+	}
+	return tableNames, nil
+}
+
+func (d *postgresDriver) GetTable(tableName string) (schema.Table, errors.Error) {
+	query := fmt.Sprintf("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '%s'", tableName)
+	rows, err := d.conn.Query(query)
+	if err != nil {
+		return schema.Table{}, errors.NewUnexpectedError(err)
+	}
+	defer rows.Close()
+
+	var columns []schema.Column
+	for rows.Next() {
+		var column schema.Column
+		if err := rows.Scan(&column.Name, &column.Type); err != nil {
+			return schema.Table{}, errors.NewUnexpectedError(err)
+		}
+		columns = append(columns, column)
+	}
+
+	return schema.Table{
+		Name:    tableName,
+		Columns: columns,
+	}, nil
+}
+
 func (d *postgresDriver) Version() float32 {
 	return d.version
 }
@@ -69,7 +112,7 @@ func (d *postgresDriver) Close() errors.Error {
 
 var postgresDriverInstance = &postgresDriver{
 	version: 13.0,
-	dataTypes: []DataType{
+	dataTypes: []schema.DataType{
 		"SMALLINT",
 		"INTEGER",
 		"BIGINT",
